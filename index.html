@@ -33,7 +33,7 @@
 
             --timeline-width: 56px;
             --hour-height: 48px; /* 1 saat = 48px, 15dk = 12px */
-            --column-min: 210px;
+            --column-min: 200px; /* ~5% narrower */
         }
 
         @media (prefers-color-scheme: dark) {
@@ -182,7 +182,14 @@
         }
 
         const studentColor = new Map(); let colorIdx = 0;
-        function colorForStudent(studentArr){ if(!studentArr || !studentArr.length) return 's0'; const id=studentArr[0]; if(!studentColor.has(id)){ studentColor.set(id, `s${colorIdx%10}`); colorIdx++; } return studentColor.get(id); }
+        function hueFromString(str){ let h=0; for(let i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) % 360; } return h; }
+        function gradientForStudent(studentArr){
+            const id = (studentArr && studentArr[0]) || 'default';
+            if(!studentColor.has(id)) studentColor.set(id, hueFromString(id));
+            const h = studentColor.get(id);
+            const h2 = (h + 12) % 360;
+            return `linear-gradient(135deg, hsl(${h}, 85%, 55%), hsl(${h2}, 85%, 45%))`;
+        }
 
         function applyMobileActiveClasses(){
             const headers = qsa('.day-header');
@@ -209,9 +216,9 @@
             const isMobile = window.innerWidth <= 560;
             const cols = DAYS.map((d,i) => {
                 if (isMobile) {
-                    return empties[i] ? '52px' : 'minmax(var(--column-min), var(--column-min))';
+                    return empties[i] ? '44px' : 'minmax(var(--column-min), var(--column-min))';
                 }
-                return empties[i] ? 'minmax(48px, 0.28fr)' : 'minmax(var(--column-min), 1fr)';
+                return empties[i] ? 'minmax(44px, 0.24fr)' : 'minmax(var(--column-min), 1fr)';
             }).join(' ');
             qs('#dayHeaders').style.gridTemplateColumns = cols;
             qs('#days').style.gridTemplateColumns = cols;
@@ -232,7 +239,8 @@
                     const label = `${name} (${minutesToHHMM(evt.start)}–${minutesToHHMM(evt.end)})`;
                     const tip = `${DAY_TR[day]} • ${minutesToHHMM(evt.start)}–${minutesToHHMM(evt.end)} (${durationMin} dk)`;
                     const div = document.createElement('div');
-                    div.className = `event ${isAvailable? 'available' : colorForStudent(evt.property_student)}`;
+                    div.className = `event ${isAvailable? 'available' : ''}`;
+                    if(!isAvailable){ div.style.background = gradientForStudent(evt.property_student); }
                     if(colsCount>1){ div.dataset.columns = String(colsCount); div.style.setProperty('--cols', colsCount); div.style.setProperty('--track', track); }
                     div.style.top = `${top+2}px`;
                     div.style.height = `${Math.max(18, height-4)}px`;
