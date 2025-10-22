@@ -205,14 +205,19 @@
         }
 
         function layoutAndRender(sessions){
+            console.log('Raw sessions:', sessions);
             const byDay = Object.fromEntries(DAYS.map(d => [d, []]));
             sessions.forEach(s => {
-                if(!s.property_weekday || !s.property_hours_start || !s.property_hours_end) return;
+                if(!s.property_weekday || !s.property_hours_start || !s.property_hours_end) {
+                    console.log('Skipped session:', s);
+                    return;
+                }
                 const start = clamp(timeFromISO(s.property_hours_start), START_MIN, END_MIN);
                 const end = clamp(timeFromISO(s.property_hours_end), START_MIN, END_MIN);
                 if(end<=start) return;
                 byDay[s.property_weekday].push({ ...s, start, end });
             });
+            console.log('Grouped by day:', byDay);
 
             const empties = DAYS.map(d => byDay[d].length === 0);
             qs('#dayHeaders').innerHTML = DAYS.map((d,i) => `<div class="day-header ${empties[i]?'empty':''}">${DAY_TR[d]}</div>`).join('');
@@ -239,8 +244,8 @@
                 laid.forEach(({evt, track}) => {
                     const top = (evt.start-START_MIN)*PX_PER_MIN();
                     const height = (evt.end-evt.start)*PX_PER_MIN();
-                    const isAvailable = (evt.name||'').trim().toUpperCase().startsWith('AVAILABLE');
-                    const name = isAvailable ? 'Müsait' : (evt.name.split('(')[0]||'').trim();
+                    const isAvailable = (evt.property_name||'').trim().toUpperCase().startsWith('AVAILABLE');
+                    const name = isAvailable ? 'Müsait' : (evt.property_name.split('(')[0]||'').trim();
                     const durationMin = evt.end - evt.start;
                     const label = `${name} (${minutesToHHMM(evt.start)}–${minutesToHHMM(evt.end)})`;
                     const tip = `${DAY_TR[day]} • ${minutesToHHMM(evt.start)}–${minutesToHHMM(evt.end)} (${durationMin} dk)`;
