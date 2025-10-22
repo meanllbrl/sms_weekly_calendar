@@ -187,66 +187,110 @@
             }
         }
 
-        // 30 distinct colors optimized for white text readability
-        const COLOR_PALETTE = [
-            ['#C41E3A', '#A01729'],  // 1. Crimson Red
-            ['#E85D04', '#C44E03'],  // 2. Burnt Orange
-            ['#F77F00', '#D66D00'],  // 3. Orange
-            ['#DC2F02', '#B82702'],  // 4. Red Orange
-            ['#D00000', '#A80000'],  // 5. Pure Red
-            ['#9D0208', '#7A0106'],  // 6. Dark Red
-            ['#6A040F', '#4F030B'],  // 7. Deep Red
-            ['#7209B7', '#5C0795'],  // 8. Purple
-            ['#560BAD', '#43088A'],  // 9. Deep Purple
-            ['#3A0CA3', '#2E0A82'],  // 10. Royal Purple
-            ['#3F37C9', '#322CA1'],  // 11. Blue Purple
-            ['#4361EE', '#364DBC'],  // 12. Royal Blue
-            ['#4895EF', '#3A78C0'],  // 13. Sky Blue
-            ['#0077B6', '#005F92'],  // 14. Ocean Blue
-            ['#0096C7', '#00789F'],  // 15. Cyan Blue
-            ['#00B4D8', '#008FAD'],  // 16. Bright Cyan
-            ['#048BA8', '#036E84'],  // 17. Teal
-            ['#16697A', '#115261'],  // 18. Deep Teal
-            ['#06A77D', '#058563'],  // 19. Jade Green
-            ['#05668D', '#045071'],  // 20. Steel Blue
-            ['#028090', '#026672'],  // 21. Dark Cyan
-            ['#00A878', '#008660'],  // 22. Emerald
-            ['#137547', '#0F5D38'],  // 23. Forest Green
-            ['#2D6A4F', '#24553F'],  // 24. Hunter Green
-            ['#40916C', '#337456'],  // 25. Medium Green
-            ['#52B788', '#42926D'],  // 26. Light Green
-            ['#BC4B51', '#9A3C42'],  // 27. Rose Red
-            ['#8B4789', '#6F396E'],  // 28. Plum
-            ['#5E4B8B', '#4B3C6F'],  // 29. Violet
-            ['#8B6B47', '#6F5639']   // 30. Bronze
+        // Curated 30-color palette (distinct hues, optimized for white text)
+        const PALETTE_BASES = [
+            '#003366', '#50C878', '#8B0000', '#FFD700', '#4B0082', '#40E0D0', '#FF8C00', '#228B22', '#C71585', '#4682B4',
+            '#654321', '#32CD32', '#2F4F4F', '#FF7F50', '#800000', '#20B2AA', '#B8860B', '#9932CC', '#008B8B', '#E9967A',
+            '#006400', '#708090', '#8B4513', '#483D8B', '#A52A2A', '#2E8B57', '#DAA520', '#008080', '#8B008B', '#0B3D91'
         ];
 
-        const studentColorMap = new Map();
-        const usedStudents = [];
-        
-        function getColorForStudent(nameOrId){
-            const id = (nameOrId || 'default').trim();
-            
-            if(!studentColorMap.has(id)){
-                // Find the student index
-                let index = usedStudents.indexOf(id);
-                if(index === -1){
-                    usedStudents.push(id);
-                    index = usedStudents.length - 1;
-                }
-                
-                // Assign color from palette (cycle if more than 30 students)
-                const colorIndex = index % COLOR_PALETTE.length;
-                studentColorMap.set(id, colorIndex);
-            }
-            
-            return studentColorMap.get(id);
+        // Color helpers
+        function hexToRgb(hex){
+            const h = hex.replace('#','');
+            const bigint = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+            const r = (bigint >> 16) & 255;
+            const g = (bigint >> 8) & 255;
+            const b = bigint & 255;
+            return {r,g,b};
         }
-        
+        function rgbToHsl(r,g,b){
+            r/=255; g/=255; b/=255;
+            const max = Math.max(r,g,b), min = Math.min(r,g,b);
+            let h,s,l = (max+min)/2;
+            if(max===min){ h=0; s=0; }
+            else {
+                const d = max-min;
+                s = l>0.5 ? d/(2-max-min) : d/(max+min);
+                switch(max){
+                    case r: h=(g-b)/d + (g<b?6:0); break;
+                    case g: h=(b-r)/d + 2; break;
+                    case b: h=(r-g)/d + 4; break;
+                }
+                h*=60;
+            }
+            return { h, s: s*100, l: l*100 };
+        }
+        function hexToHsl(hex){ const {r,g,b}=hexToRgb(hex); return rgbToHsl(r,g,b); }
+        function clampNum(v,min,max){ return Math.max(min, Math.min(max, v)); }
+        function gradientFromBaseHex(hex){
+            const hsl = hexToHsl(hex);
+            const h = Math.round(hsl.h);
+            const s = Math.round(clampNum(hsl.s*0.95 + 6, 48, 88));
+            const startL = 38;  // ensure good white text contrast
+            const endL = 28;
+            return `linear-gradient(135deg, hsl(${h}, ${s}%, ${startL}%), hsl(${h}, ${s}%, ${endL}%))`;
+        }
+
+        // Deterministic unique assignment of palette indices to student names
+        const assignedIndexByName = new Map();
+        const nameByIndex = new Map();
+        const STORAGE_KEY = 'studentColorMapV1';
+        function loadStoredMapping(){
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if(!raw) return;
+                const obj = JSON.parse(raw);
+                const n = PALETTE_BASES.length;
+                Object.keys(obj||{}).forEach(name => {
+                    const idx = obj[name];
+                    if(typeof idx === 'number' && idx>=0 && idx<n && !nameByIndex.has(idx)){
+                        assignedIndexByName.set(name, idx);
+                        nameByIndex.set(idx, name);
+                    }
+                });
+            } catch {}
+        }
+        function persistMapping(){
+            try {
+                const out = {};
+                assignedIndexByName.forEach((idx, name) => { out[name] = idx; });
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(out));
+            } catch {}
+        }
+        function hashString(str){
+            let h = 2166136261 >>> 0; // FNV-1a basis
+            for(let i=0;i<str.length;i++){
+                h ^= str.charCodeAt(i);
+                h = Math.imul(h, 16777619);
+            }
+            return h >>> 0;
+        }
+        function assignIndexForName(name){
+            if(assignedIndexByName.has(name)) return;
+            const n = PALETTE_BASES.length;
+            const base = hashString(name) % n;
+            const step = 7; // co-prime with 30 to probe evenly
+            let idx = base;
+            let attempts = 0;
+            while(nameByIndex.has(idx) && nameByIndex.get(idx)!==name && attempts < n){
+                idx = (idx + step) % n;
+                attempts++;
+            }
+            assignedIndexByName.set(name, idx);
+            nameByIndex.set(idx, name);
+            persistMapping();
+        }
+        function preparePaletteFor(names){
+            // stable ordering independent of input sequence
+            const unique = Array.from(new Set(names)).sort((a,b)=>a.localeCompare(b,'tr'));
+            unique.forEach(assignIndexForName);
+            persistMapping();
+        }
         function gradientForStudent(nameOrId){
-            const colorIndex = getColorForStudent(nameOrId);
-            const [color1, color2] = COLOR_PALETTE[colorIndex];
-            return `linear-gradient(135deg, ${color1}, ${color2})`;
+            const id = (nameOrId||'').trim() || 'default';
+            assignIndexForName(id);
+            const idx = assignedIndexByName.get(id) ?? 0;
+            return gradientFromBaseHex(PALETTE_BASES[idx]);
         }
 
         function applyMobileActiveClasses(){
@@ -265,6 +309,19 @@
                 if(end<=start) return;
                 byDay[s.property_weekday].push({ ...s, start, end });
             });
+
+            // Pre-assign palette indices for all students to ensure stable unique mapping
+            const allNames = new Set();
+            DAYS.forEach(d => {
+                byDay[d].forEach(evt => {
+                    const raw = (evt.name||'').trim();
+                    if(!raw) return;
+                    if(raw.toUpperCase().startsWith('AVAILABLE')) return;
+                    const nm = (raw.split('(')[0]||'').trim();
+                    if(nm) allNames.add(nm);
+                });
+            });
+            preparePaletteFor(Array.from(allNames));
 
             const empties = DAYS.map(d => byDay[d].length === 0);
             qs('#dayHeaders').innerHTML = DAYS.map((d,i) => `<div class="day-header ${empties[i]?'empty':''}">${DAY_TR[d]}</div>`).join('');
