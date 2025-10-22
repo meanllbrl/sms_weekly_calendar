@@ -103,6 +103,11 @@
         .nav-left { left: 6px; }
         .nav-right { right: 6px; }
 
+        .refresh-btn { position: fixed; bottom: 20px; right: 20px; width: 48px; height: 48px; border-radius: 50%; border: 1.5px solid var(--border); background: var(--surface); box-shadow: var(--elev-1); color: var(--text); font-weight: 900; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 10; transition: all 0.25s ease; }
+        .refresh-btn:hover { transform: scale(1.05); box-shadow: var(--elev-2); }
+        .refresh-btn.spin { animation: spin 0.7s linear; }
+        @keyframes spin { from{transform:rotate(0)} to{transform:rotate(360deg)} }
+
         @media (max-width: 900px) {
             :root { --column-min: 190px; --timeline-width: 52px; --hour-height: 46px; }
             .event { font-size: 10.2px; padding: 4px 6px; }
@@ -128,6 +133,7 @@
                 <div class="nav-btn nav-right" onclick="nextDay()" title="Sonraki Gün">›</div>
             </div>
         </div>
+        <button class="refresh-btn" id="refreshBtn" onclick="refreshData()" title="Yenile">↻</button>
     </div>
 
     <script>
@@ -281,6 +287,16 @@
             } catch (e) {
                 qs('#days').innerHTML = '<div style="padding:12px;color:#dc2626;">Veri yüklenemedi</div>';
                 qs('#dayHeaders').innerHTML = '';
+            }
+        }
+
+        async function refreshData(){
+            const btn = qs('#refreshBtn');
+            btn.classList.add('spin');
+            try {
+                await fetchData();
+            } finally {
+                setTimeout(() => btn.classList.remove('spin'), 600);
             }
         }
 
