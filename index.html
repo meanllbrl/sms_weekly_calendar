@@ -187,20 +187,66 @@
             }
         }
 
-        const studentColor = new Map();
-        function hueFromString(str){ 
-            let h=0; 
-            for(let i=0;i<str.length;i++){ 
-                h = (h*73 + str.charCodeAt(i)*137) % 360; 
-            } 
-            return h;
+        // 30 distinct colors optimized for white text readability
+        const COLOR_PALETTE = [
+            ['#C41E3A', '#A01729'],  // 1. Crimson Red
+            ['#E85D04', '#C44E03'],  // 2. Burnt Orange
+            ['#F77F00', '#D66D00'],  // 3. Orange
+            ['#DC2F02', '#B82702'],  // 4. Red Orange
+            ['#D00000', '#A80000'],  // 5. Pure Red
+            ['#9D0208', '#7A0106'],  // 6. Dark Red
+            ['#6A040F', '#4F030B'],  // 7. Deep Red
+            ['#7209B7', '#5C0795'],  // 8. Purple
+            ['#560BAD', '#43088A'],  // 9. Deep Purple
+            ['#3A0CA3', '#2E0A82'],  // 10. Royal Purple
+            ['#3F37C9', '#322CA1'],  // 11. Blue Purple
+            ['#4361EE', '#364DBC'],  // 12. Royal Blue
+            ['#4895EF', '#3A78C0'],  // 13. Sky Blue
+            ['#0077B6', '#005F92'],  // 14. Ocean Blue
+            ['#0096C7', '#00789F'],  // 15. Cyan Blue
+            ['#00B4D8', '#008FAD'],  // 16. Bright Cyan
+            ['#048BA8', '#036E84'],  // 17. Teal
+            ['#16697A', '#115261'],  // 18. Deep Teal
+            ['#06A77D', '#058563'],  // 19. Jade Green
+            ['#05668D', '#045071'],  // 20. Steel Blue
+            ['#028090', '#026672'],  // 21. Dark Cyan
+            ['#00A878', '#008660'],  // 22. Emerald
+            ['#137547', '#0F5D38'],  // 23. Forest Green
+            ['#2D6A4F', '#24553F'],  // 24. Hunter Green
+            ['#40916C', '#337456'],  // 25. Medium Green
+            ['#52B788', '#42926D'],  // 26. Light Green
+            ['#BC4B51', '#9A3C42'],  // 27. Rose Red
+            ['#8B4789', '#6F396E'],  // 28. Plum
+            ['#5E4B8B', '#4B3C6F'],  // 29. Violet
+            ['#8B6B47', '#6F5639']   // 30. Bronze
+        ];
+
+        const studentColorMap = new Map();
+        const usedStudents = [];
+        
+        function getColorForStudent(nameOrId){
+            const id = (nameOrId || 'default').trim();
+            
+            if(!studentColorMap.has(id)){
+                // Find the student index
+                let index = usedStudents.indexOf(id);
+                if(index === -1){
+                    usedStudents.push(id);
+                    index = usedStudents.length - 1;
+                }
+                
+                // Assign color from palette (cycle if more than 30 students)
+                const colorIndex = index % COLOR_PALETTE.length;
+                studentColorMap.set(id, colorIndex);
+            }
+            
+            return studentColorMap.get(id);
         }
+        
         function gradientForStudent(nameOrId){
-            const id = nameOrId || 'default';
-            if(!studentColor.has(id)) studentColor.set(id, hueFromString(id));
-            const h = studentColor.get(id);
-            const h2 = (h + 25) % 360;
-            return `linear-gradient(135deg, hsl(${h}, 72%, 40%), hsl(${h2}, 68%, 34%))`;
+            const colorIndex = getColorForStudent(nameOrId);
+            const [color1, color2] = COLOR_PALETTE[colorIndex];
+            return `linear-gradient(135deg, ${color1}, ${color2})`;
         }
 
         function applyMobileActiveClasses(){
